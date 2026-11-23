@@ -63,9 +63,9 @@ The drawing code for these screens is in `source/Core/Threads/UI/drawing/mono_96
 ### Building and flashing
 
 - **Download:** every push to `dev` that builds and passes the tests publishes a [release](https://github.com/GRIMREAPER35487/IronOS-Syn/releases) named after the upstream version it's based on (`BUILD_VERSION` in `source/version.h`) plus `-SYN.<n>`, for example `v2.24-SYN.1`, `v2.24-SYN.2`. Each release has the Pinecil V2 `.bin` files attached and lists the changes since the previous one.
-- **PineFlash:** releases also include `Pinecilv2.zip` and `metadata.zip` in the same layout as official IronOS releases. In PineFlash, choose **Manage sources...** in the firmware list and add `GRIMREAPER35487/IronOS-Syn`; the `-SYN` releases then appear in the firmware list next to official IronOS.
+- **PineFlash-CE:** releases also include `Pinecilv2.zip` and `metadata.zip` in the same layout as official IronOS releases. In PineFlash-CE, choose **Manage sources...** in the firmware list and add `GRIMREAPER35487/IronOS-Syn`; the `-SYN` releases then appear in the firmware list next to official IronOS.
 - **Build:** every push runs GitHub Actions, which in this fork only builds the Pinecil V2. For builds from other branches, open the run, download the **Pinecilv2** artifact, and use `Pinecilv2_EN.bin` (or another language).
-- **Flash:** write the `.bin` to the Pinecil V2 the usual way (it goes at flash address `0x2000`), for example with blisp or PineFlash using a local file. Your settings are kept.
+- **Flash:** write the `.bin` to the Pinecil V2 the usual way (it goes at flash address `0x2000`), for example with blisp or PineFlash-CE using a local file. Your settings are kept.
 
 ### Not changed
 

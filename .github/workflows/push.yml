@@ -369,12 +369,12 @@ jobs:
             echo
             echo "### Install"
             echo
-            echo "Flash \`Pinecilv2_EN.bin\` (or another language) to a Pinecil V2 the usual way. It goes at flash address \`0x2000\`, for example with blisp or PineFlash using a local file. Your settings are kept."
+            echo "Flash \`Pinecilv2_EN.bin\` (or another language) to a Pinecil V2 the usual way. It goes at flash address \`0x2000\`, for example with blisp or PineFlash-CE using a local file. Your settings are kept."
             echo "The \`Pinecilv2_multi_*.bin\` files contain several languages you can switch between on the iron."
             echo
-            echo "### Use this fork as a firmware source in PineFlash"
+            echo "### Use this fork as a firmware source in PineFlash-CE"
             echo
-            echo "This release includes \`Pinecilv2.zip\` and \`metadata.zip\` in the same layout as official IronOS releases, so PineFlash can list it next to official IronOS:"
+            echo "This release includes \`Pinecilv2.zip\` and \`metadata.zip\` in the same layout as official IronOS releases, so PineFlash-CE can list it next to official IronOS:"
             echo
             echo "1. Select **Pinecil V2**, open the firmware version list, and choose **Manage sources...**"
             echo "2. Add \`${GITHUB_REPOSITORY}\` and close the window."
@@ -397,7 +397,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # IronOS-style assets so tools like PineFlash can use this repo as a firmware source:
+          # IronOS-style assets so tools like PineFlash-CE can use this repo as a firmware source:
           #   Pinecilv2.zip - the single-language Pinecilv2_<LANG>.bin files at the zip root
           #   metadata.zip  - Pinecilv2.json (language list) at the zip root
           single=artifacts/Pinecilv2
