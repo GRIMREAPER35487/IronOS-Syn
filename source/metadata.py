@@ -48,6 +48,10 @@ def read_git_tag():
 
 
 def read_version():
+    # This fork: CI passes the -SYN release name, so the json matches the firmware and the release
+    syn_version = os.environ.get("IRONOS_SYN_VERSION", "").strip()
+    if syn_version != "":
+        return syn_version
     with open(HERE / "version.h") as version_file:
         for line in version_file:
             if re.findall(r"^.*(?<=(#define)).*(?<=(BUILD_VERSION))", line):

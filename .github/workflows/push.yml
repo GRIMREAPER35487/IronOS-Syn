@@ -34,8 +34,10 @@ jobs:
             echo "Could not read BUILD_VERSION from source/version.h"
             exit 1
           fi
+          # Fail here rather than silently starting again at .1 if the tag list can't be read
+          refs=$(git ls-remote --tags --refs origin "refs/tags/${base}-SYN.*") || { echo "Could not list tags on origin"; exit 1; }
           last=0
-          for ref in $(git ls-remote --tags --refs origin "refs/tags/${base}-SYN.*" | cut -f2); do
+          for ref in $(echo "$refs" | cut -f2); do
             n="${ref#"refs/tags/${base}-SYN."}"
             if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$last" ]; then last="$n"; fi
           done
@@ -83,6 +85,8 @@ jobs:
         run: cp LICENSE scripts/LICENSE_RELEASE.md  source/Hexfile/
 
       - name: Generate json index file
+        env:
+          IRONOS_SYN_VERSION: ${{ needs.version.outputs.tag }}
         run: ./source/metadata.py ${{ matrix.model }}.json
 
       - name: Archive ${{ matrix.model }} artifacts
@@ -133,6 +137,8 @@ jobs:
         run: cp LICENSE scripts/LICENSE_RELEASE.md  source/Hexfile/
 
       - name: Generate json index file
+        env:
+          IRONOS_SYN_VERSION: ${{ needs.version.outputs.tag }}
         run: ./source/metadata.py ${{ matrix.model }}_multi-lang.json
 
       - name: Archive ${{ matrix.model }} artifacts
@@ -362,7 +368,8 @@ jobs:
   # The name comes from the version job (e.g. v2.24-SYN.1), the same string the firmware was built with.
   release:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
-    needs: [version, build, build_multi-lang, tests]
+    # Every check has to pass too, so a release never comes from a commit that failed formatting or docs checks
+    needs: [version, build, build_multi-lang, tests, check_c-cpp, check-settings-docs, check_python, check_shell, check_docs]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
