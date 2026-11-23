@@ -5,10 +5,12 @@
 // State 1 = button locking  (0:unlocked+released, 1:unlocked, 2:locked, 3:locked+released)
 // State 2 = boost mode
 // State 3 = buzzer timer
-// State 4 = set after the first frame in this mode (custom)
+// State 4 = cleared by GUIThread before every frame (sleep/hibernate flag), so it can't hold anything here
 // State 5 = set point reached this heat-up, so the reached signal has already fired
-// State 6 = at-temp screen blink running (custom)
+// State 6 = custom flags, see SOLDER_FLAG_*
 // State 8 = tick the at-temp screen blink started (custom)
+#define SOLDER_FLAG_BLINK  0x1 // at-temp screen blink running
+#define SOLDER_FLAG_INITED 0x2 // first frame in this mode has been handled
 
 // Screen blink the first time the tip reaches the set point: inverted on phases 0, 2, 4
 #define AT_TEMP_BLINK_PHASE  (TICKS_100MS * 2)
@@ -178,8 +180,8 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
   // sleep) is a new heat-up.
   static bool              reachedThisHeatUp = false;
   static TemperatureType_t reachedTargetC    = 0;
-  if (!cxt->scratch_state.state4) {
-    cxt->scratch_state.state4 = 1;
+  if (!(cxt->scratch_state.state6 & SOLDER_FLAG_INITED)) {
+    cxt->scratch_state.state6 |= SOLDER_FLAG_INITED;
     if (cxt->previousMode != OperatingMode::TemperatureAdjust || reachedTargetC != currentTempTargetDegC) {
       reachedThisHeatUp = false;
     }
@@ -200,7 +202,7 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
       cxt->scratch_state.state3 = xTaskGetTickCount() + TICKS_SECOND / 3;
       cxt->scratch_state.state5 = true;
       // Pinecil V2 has no buzzer, so also blink the screen
-      cxt->scratch_state.state6 = 1;
+      cxt->scratch_state.state6 |= SOLDER_FLAG_BLINK;
       cxt->scratch_state.state8 = xTaskGetTickCount();
     }
     setStatusLED(LED_HOT);
@@ -216,15 +218,15 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
   // Outside the blink the user's setting is re-applied every frame; that is free unless the panel disagrees
   // (e.g. a dropped write), in which case it puts the screen back.
   const bool userInverted = getSettingValue(SettingsOptions::OLEDInversion);
-  if (cxt->scratch_state.state6) {
+  if (cxt->scratch_state.state6 & SOLDER_FLAG_BLINK) {
     const uint32_t phase = (xTaskGetTickCount() - cxt->scratch_state.state8) / AT_TEMP_BLINK_PHASE;
     if (phase >= AT_TEMP_BLINK_PHASES) {
-      cxt->scratch_state.state6 = 0;
+      cxt->scratch_state.state6 &= ~SOLDER_FLAG_BLINK;
     } else {
       OLED::setInverseDisplay(userInverted != (phase % 2 == 0));
     }
   }
-  if (!cxt->scratch_state.state6) {
+  if (!(cxt->scratch_state.state6 & SOLDER_FLAG_BLINK)) {
     OLED::setInverseDisplay(userInverted);
   }
 
