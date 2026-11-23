@@ -16,6 +16,15 @@ void ui_draw_cjc_sampling(const uint8_t num_dots);               // Draws the CJ
 void ui_draw_debug_menu(const uint8_t item_number);              // Draws the debug menu state
 void ui_draw_homescreen_detailed(TemperatureType_t tipTemp);     // Drawing the home screen -- Detailed mode
 void ui_draw_homescreen_simplified(TemperatureType_t tipTemp);   // Drawing the home screen -- Simple mode
+
+// Safe-to-touch state for the home screen, worked out each frame in HomeScreen.cpp (custom)
+struct HomeCooldownState {
+  bool coolingDown;  // tip has been hot and is not below the safe temperature yet: keep showing the temp
+  bool safeSimple;   // just became safe: show the SAFE badge on the simple home screen (for a few seconds)
+  bool safeDetailed; // cooled from hot to safe: show the OK badge on the detailed home screen (while cool)
+};
+extern HomeCooldownState homeCooldown;
+void ui_draw_safe_badge(bool smallBadge, int16_t x); // 96x16 only: lit box with SAFE (40px) or OK (18px)
 void ui_pre_render_assets(void);                                 // If any assets need to be pre-rendered into ram
 // Soldering mode
 void ui_draw_soldering_power_status(bool boost_mode_on);

@@ -20,14 +20,24 @@ void ui_draw_homescreen_simplified(TemperatureType_t tipTemp) {
     ui_draw_power_source_icon();
   }
   tipDisconnectedDisplay = false;
-  if (tipTemp > 55) {
-    tempOnDisplay = true;
-  } else if (tipTemp < 45) {
-    tempOnDisplay = false;
-  }
+  // Show the tip temp from when the tip is hot until it is below the safe-to-touch temperature.
+  // (Stock code meant to do 55/45 hysteresis here, but tempOnDisplay is reset every frame so it hid at 55.)
+  (void)tipTemp;
+  tempOnDisplay = homeCooldown.coolingDown;
   if (isTipDisconnected()) {
     tempOnDisplay          = false;
     tipDisconnectedDisplay = true;
+  }
+  if (!tempOnDisplay && !tipDisconnectedDisplay && homeCooldown.safeSimple) {
+    // Just cooled down: SAFE badge over the start soldering button for a few seconds
+    if (OLED::getRotation()) {
+      OLED::fillArea(54, 0, 42, 16, 0);
+      ui_draw_safe_badge(false, 55);
+    } else {
+      OLED::fillArea(0, 0, 42, 16, 0);
+      ui_draw_safe_badge(false, 1);
+    }
+    return;
   }
   if (tempOnDisplay || tipDisconnectedDisplay) {
     // draw temp over the start soldering button

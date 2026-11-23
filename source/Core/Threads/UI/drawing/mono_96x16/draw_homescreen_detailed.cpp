@@ -52,6 +52,11 @@ void ui_draw_homescreen_detailed(TemperatureType_t tipTemp) {
     }
     printVoltage(); // draw voltage then symbol (v)
     OLED::print(SmallSymbolVolts, FontStyle::SMALL);
+
+    // Cooled from hot to safe-to-touch: OK badge in the gap between tip temp and set temp / voltage
+    if (homeCooldown.safeDetailed) {
+      ui_draw_safe_badge(true, OLED::getRotation() ? 31 : 48);
+    }
   }
 }
 #endif
