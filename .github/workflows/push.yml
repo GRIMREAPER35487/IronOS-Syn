@@ -17,19 +17,8 @@ jobs:
       matrix:
         model:
           [
-            "TS100",
-            "TS80",
-            "TS80P",
-            "Pinecil",
-            "MHP30",
+            # This fork only targets the Pinecil V2; upstream builds every model here
             "Pinecilv2",
-            "S60",
-            "S60P",
-            "T55",
-            "S99",
-            "Si012ProMax",
-            "TS101",
-            "HS01",
           ]
       fail-fast: false
 
@@ -79,7 +68,7 @@ jobs:
       image: alpine:3.21
     strategy:
       matrix:
-        model: ["Pinecil", "Pinecilv2"]
+        model: ["Pinecilv2"]
       fail-fast: false
 
     steps:
