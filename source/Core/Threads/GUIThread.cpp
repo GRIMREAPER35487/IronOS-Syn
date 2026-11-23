@@ -109,6 +109,9 @@ OperatingMode guiHandleDraw(void) {
   case OperatingMode::HomeScreen:
     newMode = drawHomeScreen(buttons, &context);
     break;
+  case OperatingMode::HeatConfirm:
+    newMode = gui_heatConfirm(buttons, &context);
+    break;
   case OperatingMode::Soldering:
     context.scratch_state.state4 = 0;
     newMode                      = gui_solderingMode(buttons, &context);

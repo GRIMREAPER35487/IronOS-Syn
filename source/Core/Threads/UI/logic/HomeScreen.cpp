@@ -37,9 +37,9 @@ OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt) {
     break;
   case BUTTON_F_SHORT:
     if (!isTipDisconnected()) {
-      bool detailedView   = getSettingValue(SettingsOptions::DetailedIDLE) && getSettingValue(SettingsOptions::DetailedSoldering);
-      cxt->transitionMode = detailedView ? TransitionAnimation::None : TransitionAnimation::Left;
-      return OperatingMode::Soldering;
+      // Don't heat straight away: show the set temperature and wait for a double press first
+      cxt->transitionMode = TransitionAnimation::Left;
+      return OperatingMode::HeatConfirm;
     }
     break;
   case BUTTON_B_SHORT:

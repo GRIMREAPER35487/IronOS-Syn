@@ -43,6 +43,7 @@ enum class OperatingMode {
   TemperatureAdjust  = 7,  // Set point temperature adjustment
   UsbPDDebug         = 8,  // USB PD debugging information
   ThermalRunaway     = 9,  // Thermal Runaway warning state.
+  HeatConfirm        = 15, // Shows set temp and waits for a double press before heating
 };
 
 enum class TransitionAnimation {
@@ -76,6 +77,7 @@ OperatingMode gui_SolderingSleepingMode(const ButtonState buttons, guiContext *c
 OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt);         // Main mode for hot pointy tool
 OperatingMode gui_solderingTempAdjust(const ButtonState buttons, guiContext *cxt);   // For adjusting the setpoint temperature of the iron
 OperatingMode drawHomeScreen(const ButtonState buttons, guiContext *cxt);            // IDLE / Home screen
+OperatingMode gui_heatConfirm(const ButtonState buttons, guiContext *cxt);           // Confirm screen shown before heating starts
 OperatingMode gui_SettingsMenu(const ButtonState buttons, guiContext *cxt);          //
 
 OperatingMode gui_solderingProfileMode(const ButtonState buttons, guiContext *cxt); // Profile mode for hot likely-not-so-pointy tool

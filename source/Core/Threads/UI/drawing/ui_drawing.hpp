@@ -26,6 +26,8 @@ void ui_draw_soldering_profile_advanced(TemperatureType_t tipTemp, TemperatureTy
 
 // Temp change
 void ui_draw_temperature_change(void);
+// Heat confirm screen: iron icon (hidden when showIcon is false, used to blink) + set temperature
+void ui_draw_heat_confirm(bool showIcon);
 // USB-PD debug
 void ui_draw_usb_pd_debug_state(const uint16_t vbus_sense_state, const uint8_t stateNumber);
 void ui_draw_usb_pd_debug_pdo(const uint8_t entry_num, const uint16_t min_voltage, const uint16_t max_voltage, const uint16_t current_a_x100, const uint16_t wattage);
