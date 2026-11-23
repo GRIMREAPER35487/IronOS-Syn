@@ -754,11 +754,15 @@ void OLED::setBrightness(uint8_t contrast) {
 void OLED::setInverseDisplay(bool inverse) {
   uint8_t normalInverseCmd = inverse ? 0xA7 : 0xA6;
   if (OLED_Setup_Array[21].val != normalInverseCmd) {
-    OLED_Setup_Array[21].val = normalInverseCmd;
 #ifdef OLED_I2C_PER_BYTE_TRANSFERS
+    OLED_Setup_Array[21].val = normalInverseCmd;
     i2c_send_command_byte(normalInverseCmd);
 #else
-    I2C_CLASS::I2C_RegisterWrite(DEVICEADDR_OLED, 0x80, normalInverseCmd);
+    // Only remember the new state once the panel has taken it, so a dropped write (bus busy, NACK) is retried on the
+    // next call instead of leaving the screen stuck in the wrong state (custom)
+    if (I2C_CLASS::I2C_RegisterWrite(DEVICEADDR_OLED, 0x80, normalInverseCmd)) {
+      OLED_Setup_Array[21].val = normalInverseCmd;
+    }
 #endif /* OLED_I2C_PER_BYTE_TRANSFERS */
   }
 }

@@ -213,15 +213,19 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
 
   // At-temp screen blink: flip the display invert relative to the user's setting.
   // GUIThread restores the user's setting on any mode change, so leaving mid-blink is safe.
+  // Outside the blink the user's setting is re-applied every frame; that is free unless the panel disagrees
+  // (e.g. a dropped write), in which case it puts the screen back.
+  const bool userInverted = getSettingValue(SettingsOptions::OLEDInversion);
   if (cxt->scratch_state.state6) {
-    const bool     userInverted = getSettingValue(SettingsOptions::OLEDInversion);
-    const uint32_t phase        = (xTaskGetTickCount() - cxt->scratch_state.state8) / AT_TEMP_BLINK_PHASE;
+    const uint32_t phase = (xTaskGetTickCount() - cxt->scratch_state.state8) / AT_TEMP_BLINK_PHASE;
     if (phase >= AT_TEMP_BLINK_PHASES) {
       cxt->scratch_state.state6 = 0;
-      OLED::setInverseDisplay(userInverted);
     } else {
       OLED::setInverseDisplay(userInverted != (phase % 2 == 0));
     }
+  }
+  if (!cxt->scratch_state.state6) {
+    OLED::setInverseDisplay(userInverted);
   }
 
   // Draw in the screen details
