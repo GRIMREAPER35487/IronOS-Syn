@@ -169,6 +169,8 @@ void guiRenderLoop(void) {
       }
     }
     memset(&context.scratch_state, 0, sizeof(context.scratch_state));
+    // Undo any temporary screen invert (e.g. the at-temp blink in soldering mode); no-op if unchanged
+    OLED::setInverseDisplay(getSettingValue(SettingsOptions::OLEDInversion));
     currentOperatingMode = newMode;
   }
 

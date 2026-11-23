@@ -20,6 +20,7 @@ void ui_pre_render_assets(void);                                 // If any asset
 // Soldering mode
 void ui_draw_soldering_power_status(bool boost_mode_on);
 void ui_draw_soldering_basic_status(bool boostModeOn);
+void ui_draw_at_temp_underline(bool detailedView); // 1px line under the tip temp while at the set point
 void ui_draw_soldering_detailed_sleep(TemperatureType_t tipTemp);
 void ui_draw_soldering_basic_sleep(TemperatureType_t tipTemp);
 void ui_draw_soldering_profile_advanced(TemperatureType_t tipTemp, TemperatureType_t profileCurrentTargetTemp, uint32_t phaseElapsedSeconds, uint32_t phase, const uint32_t phaseTimeGoal);

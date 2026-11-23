@@ -5,6 +5,12 @@
 // State 1 = button locking  (0:unlocked+released, 1:unlocked, 2:locked, 3:locked+released)
 // State 2 = boost mode
 // State 3 = buzzer timer
+// State 6 = at-temp screen blink running (custom)
+// State 8 = tick the at-temp screen blink started (custom)
+
+// Screen blink the first time the tip reaches the set point: inverted on phases 0, 2, 4
+#define AT_TEMP_BLINK_PHASE  (TICKS_100MS * 2)
+#define AT_TEMP_BLINK_PHASES 6
 
 OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt) {
   if (cxt->scratch_state.state1 >= 2) {
@@ -122,13 +128,17 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
   }
 
   // Update status
-  int error = currentTempTargetDegC - TipThermoModel::getTipInC();
-  if (error >= -10 && error <= 10) {
+  int  error  = currentTempTargetDegC - TipThermoModel::getTipInC();
+  bool atTemp = (error >= -10 && error <= 10);
+  if (atTemp) {
     // converged; beep once per soldering session, the first time the set point is reached
     if (!cxt->scratch_state.state5) {
       setBuzzer(true);
       cxt->scratch_state.state3 = xTaskGetTickCount() + TICKS_SECOND / 3;
       cxt->scratch_state.state5 = true;
+      // Pinecil V2 has no buzzer, so also blink the screen
+      cxt->scratch_state.state6 = 1;
+      cxt->scratch_state.state8 = xTaskGetTickCount();
     }
     setStatusLED(LED_HOT);
   } else {
@@ -138,11 +148,28 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
     setBuzzer(false);
   }
 
+  // At-temp screen blink: flip the display invert relative to the user's setting.
+  // GUIThread restores the user's setting on any mode change, so leaving mid-blink is safe.
+  if (cxt->scratch_state.state6) {
+    const bool     userInverted = getSettingValue(SettingsOptions::OLEDInversion);
+    const uint32_t phase        = (xTaskGetTickCount() - cxt->scratch_state.state8) / AT_TEMP_BLINK_PHASE;
+    if (phase >= AT_TEMP_BLINK_PHASES) {
+      cxt->scratch_state.state6 = 0;
+      OLED::setInverseDisplay(userInverted);
+    } else {
+      OLED::setInverseDisplay(userInverted != (phase % 2 == 0));
+    }
+  }
+
   // Draw in the screen details
   if (getSettingValue(SettingsOptions::DetailedSoldering)) {
     ui_draw_soldering_power_status(cxt->scratch_state.state2);
   } else {
     ui_draw_soldering_basic_status(cxt->scratch_state.state2);
+  }
+  // Underline the tip temperature while it is within +-10 of the set point
+  if (atTemp) {
+    ui_draw_at_temp_underline(getSettingValue(SettingsOptions::DetailedSoldering));
   }
 
   bool detailedView = getSettingValue(SettingsOptions::DetailedIDLE) && getSettingValue(SettingsOptions::DetailedSoldering);
