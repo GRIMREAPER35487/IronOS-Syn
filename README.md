@@ -5,6 +5,74 @@
 
 # IronOS - Open Source Flexible Firmware for Soldering Hardware
 
+> [!NOTE]
+> **This is a personal fork of [Ralim/IronOS](https://github.com/Ralim/IronOS) for the Pine64 Pinecil V2.**
+> It adds the customisations below. Everything after the [Pinecil V2 customisations](#pinecil-v2-customisations) section is the upstream IronOS README.
+
+## Pinecil V2 customisations
+
+[![Fork CI Build](https://github.com/GRIMREAPER35487/IronOS-Syn/actions/workflows/push.yml/badge.svg?branch=dev)](https://github.com/GRIMREAPER35487/IronOS-Syn/actions/workflows/push.yml)
+
+| Feature                         | What it does                                                                                              |
+| :------------------------------ | :-------------------------------------------------------------------------------------------------------- |
+| **Confirm before heating**      | The iron-side button no longer heats straight away. It opens a confirm screen first; double press to heat. |
+| **Reached-temperature blink**   | The screen blinks 3 times the first time the tip reaches the set temperature (the V2 has no buzzer).     |
+| **At-temperature underline**    | A thin line under the tip temperature while it is within ±10 °C of the target.                           |
+| **Safe-to-touch badge**         | After soldering, a **SAFE** badge appears on the home screen once the tip is below 38 °C (100 °F).        |
+| **Cooling temperature fix**     | The simple home screen keeps showing the tip temperature all the way down, instead of hiding it at 55 °C. |
+
+### Confirm before heating
+
+On the home screen, pressing the iron-side (front) button shows a confirm screen with the iron icon and the set temperature. The heater stays **off** on this screen.
+
+| Input on the confirm screen                | Result                                                                  |
+| :----------------------------------------- | :---------------------------------------------------------------------- |
+| Iron-side button, **double press**         | Start soldering (heats). The two presses must be within 0.6 s.         |
+| Iron-side button, single press             | The icon blinks fast while it waits for the second press.              |
+| Minus (back) button, short press           | Open the temperature adjust screen, then return to the confirm screen. |
+| Minus (back) button, hold                  | Back to the home screen.                                               |
+| No buttons for 10 s, or the tip is removed | Back to the home screen.                                               |
+| Holding the iron-side button, or both      | Ignored.                                                               |
+
+### Reached-temperature signal
+
+- **Blink:** the first time the tip gets within 10 °C of the set temperature after you start heating, the whole screen inverts 3 times (about 1.2 s). It uses the display's own invert command relative to your _Invert screen_ setting, and the normal colours are always restored when leaving soldering mode.
+- **Underline:** while the tip stays within ±10 °C of the target (including the boost temperature while boosting), a 1 px line is drawn under the tip temperature. It disappears if the tip is pulled down, for example by a large ground plane, and comes back when it recovers. Works on the basic and detailed soldering screens, in both orientations.
+
+### Safe-to-touch badge
+
+- **Simple home screen:** after soldering, the tip temperature stays on screen while it cools. Once it drops below **38 °C**, a lit **SAFE** badge replaces it for 5 s, then the iron icon returns.
+- **Detailed home screen:** a lit **OK** badge appears in the gap between the tip temperature and the set temperature / voltage, and stays while the tip is cool.
+- It only appears after the tip has been hot (40 °C or more) since you came back to the home screen, so a cold power-up doesn't show it. The 2 °C gap stops it flickering.
+- **Why 38 °C:** below about 43 °C skin can't burn even with long contact (ISO 13732-1). 38 °C leaves a few degrees of margin for sensor error. The last few degrees of cooling are the slowest, so it can take a few minutes, longer in a warm room.
+
+### Tuning
+
+| Value                              | Default          | Where                                                                          |
+| :--------------------------------- | :--------------- | :----------------------------------------------------------------------------- |
+| Double-press window                | 0.6 s            | `HEAT_CONFIRM_DOUBLE_WINDOW` in `source/Core/Threads/UI/logic/HeatConfirm.cpp` |
+| Confirm screen timeout             | 10 s             | `HEAT_CONFIRM_TIMEOUT` in `HeatConfirm.cpp`                                    |
+| Reached-temperature blink          | 6 × 200 ms       | `AT_TEMP_BLINK_PHASE` / `AT_TEMP_BLINK_PHASES` in `.../logic/Soldering.cpp`    |
+| At-temperature band                | ±10 °C           | `atTemp` in `Soldering.cpp` (same band stock IronOS uses for its beep)         |
+| Safe-to-touch temperature          | 38 °C            | `SAFE_TO_TOUCH_C` in `.../logic/HomeScreen.cpp`                                |
+| Counts as hot again                | 40 °C            | `HOT_C` in `HomeScreen.cpp`                                                    |
+| SAFE badge time (simple screen)    | 5 s              | `SAFE_BADGE_TIME` in `HomeScreen.cpp`                                          |
+
+The drawing code for these screens is in `source/Core/Threads/UI/drawing/mono_96x16/` (`draw_heat_confirm.cpp`, `draw_at_temp_underline.cpp`, `draw_safe_badge.cpp`). The 128x32 drawing files only have placeholders, so these features are Pinecil V2 (96x16) only.
+
+### Building and flashing
+
+- **Build:** every push runs GitHub Actions, which in this fork only builds the Pinecil V2. Open the run, download the **Pinecilv2** artifact, and use `Pinecilv2_EN.bin` (or another language).
+- **Flash:** write the `.bin` to the Pinecil V2 the usual way (it goes at flash address `0x2000`), for example with blisp or PineFlash using a local file. Your settings are kept.
+
+### Not changed
+
+- Waking from sleep goes straight back to heating, as in stock IronOS (sleep keeps the tip hot anyway).
+- _Start-up behaviour: Soldering_ still heats at power-on without the confirm screen.
+- Hibernate (_Start-up behaviour: zero_) shows the sleep screen, so it doesn't show the SAFE badge.
+
+---
+
 _This repository was formerly known as TS100, it's the same great code. Just with more supported devices._
 
 Originally conceived as an alternative firmware for the _TS100_, this firmware has evolved into a complex soldering hardware control firmware.
