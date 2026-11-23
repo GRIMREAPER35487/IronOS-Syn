@@ -31,7 +31,7 @@ jobs:
             "TS101",
             "HS01",
           ]
-      fail-fast: true
+      fail-fast: false
 
     steps:
       - name: Install dependencies (apk)
@@ -80,7 +80,7 @@ jobs:
     strategy:
       matrix:
         model: ["Pinecil", "Pinecilv2"]
-      fail-fast: true
+      fail-fast: false
 
     steps:
       - name: Install dependencies (apk)
