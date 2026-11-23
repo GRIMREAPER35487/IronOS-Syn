@@ -372,6 +372,16 @@ jobs:
             echo "Flash \`Pinecilv2_EN.bin\` (or another language) to a Pinecil V2 the usual way. It goes at flash address \`0x2000\`, for example with blisp or PineFlash using a local file. Your settings are kept."
             echo "The \`Pinecilv2_multi_*.bin\` files contain several languages you can switch between on the iron."
             echo
+            echo "### Use this fork as a firmware source in PineFlash"
+            echo
+            echo "This release includes \`Pinecilv2.zip\` and \`metadata.zip\` in the same layout as official IronOS releases, so PineFlash can list it next to official IronOS:"
+            echo
+            echo "1. Select **Pinecil V2**, open the firmware version list, and choose **Manage sources...**"
+            echo "2. Add \`${GITHUB_REPOSITORY}\` and close the window."
+            echo "3. Pick **${GITHUB_REPOSITORY} · ${tag}** (or a newer \`-SYN\` release) from the firmware list, choose your language, and flash."
+            echo
+            echo "New \`-SYN\` releases show up there automatically. Only the newest 5 are listed."
+            echo
             if [ -n "$prev" ]; then
               echo "### Changes since ${prev}"
               echo
@@ -387,11 +397,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mapfile -t files < <(find artifacts -type f -name 'Pinecilv2_*.bin' | sort)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No Pinecilv2_*.bin files found in the build artifacts"
+          # IronOS-style assets so tools like PineFlash can use this repo as a firmware source:
+          #   Pinecilv2.zip - the single-language Pinecilv2_<LANG>.bin files at the zip root
+          #   metadata.zip  - Pinecilv2.json (language list) at the zip root
+          single=artifacts/Pinecilv2
+          if [ ! -f "$single/Pinecilv2.json" ] || ! ls "$single"/Pinecilv2_*.bin > /dev/null 2>&1; then
+            echo "Missing Pinecilv2.json or Pinecilv2_*.bin in $single"
+            ls -la artifacts artifacts/* || true
             exit 1
           fi
+          (cd "$single" && zip -q -X "$GITHUB_WORKSPACE/Pinecilv2.zip" Pinecilv2_*.bin)
+          (cd "$single" && zip -q -X "$GITHUB_WORKSPACE/metadata.zip" Pinecilv2.json)
+
+          mapfile -t files < <(find artifacts -type f -name 'Pinecilv2_*.bin' | sort)
+          files=(Pinecilv2.zip metadata.zip "${files[@]}")
           printf 'Attaching %s\n' "${files[@]}"
           gh release create "${{ steps.version.outputs.tag }}" \
             --target "$GITHUB_SHA" \
