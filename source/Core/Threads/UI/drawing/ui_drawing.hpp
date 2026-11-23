@@ -30,7 +30,8 @@ void ui_draw_safe_badge(bool smallBadge, int16_t x); // 96x16 only: lit box with
 void ui_pre_render_assets(void); // If any assets need to be pre-rendered into ram
 // Soldering mode
 void ui_draw_soldering_power_status(bool boost_mode_on);
-void ui_draw_soldering_basic_status(bool boostModeOn);
+// targetTemp is in display units; heatEtaSeconds is the heat-up countdown, or -1 to show how far the tip is off target instead
+void ui_draw_soldering_basic_status(bool boostModeOn, TemperatureType_t targetTemp, int8_t heatEtaSeconds);
 void ui_draw_at_temp_underline(bool detailedView); // 1px line under the tip temp while at the set point
 void ui_draw_soldering_detailed_sleep(TemperatureType_t tipTemp);
 void ui_draw_soldering_basic_sleep(TemperatureType_t tipTemp);

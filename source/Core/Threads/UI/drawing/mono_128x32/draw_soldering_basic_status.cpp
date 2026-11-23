@@ -6,7 +6,9 @@
 
 // [heat / boost column 16px][LARGE temp + °C 48px][info column: 20.0V / source / set point in the 6x8 font]
 // The side columns swap over for left handed mode so the heat indicator stays next to the buttons.
-void ui_draw_soldering_basic_status(bool boostModeOn) {
+void ui_draw_soldering_basic_status(bool boostModeOn, TemperatureType_t targetTemp, int8_t heatEtaSeconds) {
+  (void)targetTemp; // the 96x16 layout's set point / countdown block is not drawn on 128x32
+  (void)heatEtaSeconds;
   const bool    leftHanded = OLED::getRotation();
   const int16_t heatX      = leftHanded ? 116 : 0;
   const int16_t tempX      = leftHanded ? 62 : 16;
@@ -51,7 +53,9 @@ void ui_draw_soldering_basic_status(bool boostModeOn) {
 
 #else  /* upstream layout */
 
-void ui_draw_soldering_basic_status(bool boostModeOn) {
+void ui_draw_soldering_basic_status(bool boostModeOn, TemperatureType_t targetTemp, int8_t heatEtaSeconds) {
+  (void)targetTemp; // the 96x16 layout's set point / countdown block is not drawn on 128x32
+  (void)heatEtaSeconds;
   OLED::setCursor(0, 0);
   // We switch the layout direction depending on the orientation of the oled
   if (OLED::getRotation()) {

@@ -20,6 +20,7 @@
 | **At-temperature underline**    | A thin line under the tip temperature while it is within ±10 °C of the target.                           |
 | **Safe-to-touch badge**         | After soldering, a **SAFE** badge appears on the home screen once the tip is below 38 °C (100 °F).        |
 | **Cooling temperature fix**     | The simple home screen keeps showing the tip temperature all the way down, instead of hiding it at 55 °C. |
+| **New soldering screen**        | The basic soldering screen shows the set temperature, live watts, a heat-up countdown and the voltage.   |
 
 ### Confirm before heating
 
@@ -36,8 +37,26 @@ On the home screen, pressing the iron-side (front) button shows a confirm screen
 
 ### Reached-temperature signal
 
-- **Blink:** the first time the tip gets within 10 °C of the set temperature after you start heating, the whole screen inverts 3 times (about 1.2 s). It uses the display's own invert command relative to your _Invert screen_ setting, and the normal colours are always restored when leaving soldering mode.
+- **Blink:** the first time the tip gets within 10 °C of the set temperature after you start heating, the whole screen inverts 3 times (about 1.2 s). If you change the set temperature, it blinks again when the tip reaches the new one. Opening the temperature screen and leaving it unchanged doesn't replay it. It uses the display's own invert command relative to your _Invert screen_ setting, and the normal colours are always restored when leaving soldering mode.
 - **Underline:** while the tip stays within ±10 °C of the target (including the boost temperature while boosting), a 1 px line is drawn under the tip temperature. It disappears if the tip is pulled down, for example by a large ground plane, and comes back when it recovers. Works on the basic and detailed soldering screens, in both orientations.
+
+### Soldering screen
+
+The basic soldering screen (Detailed soldering view off) has a new layout. The flame icon is gone. The big live temperature stays in the middle, with a small block on each side:
+
+```
+|320    318°C    12s|
+ 45W              20V
+```
+
+| Where        | Shows                                                                                                                                                  |
+| :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Top left     | The set temperature (the boost temperature while boosting), marked by a short bar on the edge.                                                         |
+| Bottom left  | Live heater power in watts.                                                                                                                            |
+| Top right    | While heating: about how many seconds until the tip is within 10 °C of the target. After that: how far the tip is off target right now, e.g. `+2`, `-3`. |
+| Bottom right | Input voltage.                                                                                                                                         |
+
+The countdown comes from how fast the tip is heating at the moment, so it is an estimate. It only shows while the tip is clearly heating (above about 3 °C/s), so a slow climb shows the off-target number instead. In left-handed mode the two side blocks swap over. The detailed soldering screen is unchanged.
 
 ### Safe-to-touch badge
 
@@ -57,12 +76,13 @@ On the home screen, pressing the iron-side (front) button shows a confirm screen
 | Safe-to-touch temperature          | 38 °C            | `SAFE_TO_TOUCH_C` in `.../logic/HomeScreen.cpp`                                |
 | Counts as hot again                | 40 °C            | `HOT_C` in `HomeScreen.cpp`                                                    |
 | SAFE badge time (simple screen)    | 5 s              | `SAFE_BADGE_TIME` in `HomeScreen.cpp`                                          |
+| Countdown shows / hides below      | 3 °C/s / 1.5 °C/s | `HEAT_ETA_SHOW_RATE` / `HEAT_ETA_HIDE_RATE` in `Soldering.cpp`                 |
 
-The drawing code for these screens is in `source/Core/Threads/UI/drawing/mono_96x16/` (`draw_heat_confirm.cpp`, `draw_at_temp_underline.cpp`, `draw_safe_badge.cpp`). The 128x32 drawing files only have placeholders, so these features are Pinecil V2 (96x16) only.
+The drawing code for these screens is in `source/Core/Threads/UI/drawing/mono_96x16/` (`draw_heat_confirm.cpp`, `draw_at_temp_underline.cpp`, `draw_safe_badge.cpp`, `draw_soldering_basic_status.cpp`). The 128x32 drawing files only have placeholders, so these features are Pinecil V2 (96x16) only.
 
 ### Building and flashing
 
-- **Download:** every push to `dev` that builds and passes the tests publishes a [release](https://github.com/GRIMREAPER35487/IronOS-Syn/releases) named after the upstream version it's based on (`BUILD_VERSION` in `source/version.h`) plus `-SYN.<n>`, for example `v2.24-SYN.1`, `v2.24-SYN.2`. Each release has the Pinecil V2 `.bin` files attached and lists the changes since the previous one.
+- **Download:** every push to `dev` that builds and passes the tests and checks publishes a [release](https://github.com/GRIMREAPER35487/IronOS-Syn/releases) named after the upstream version it's based on (`BUILD_VERSION` in `source/version.h`) plus `-SYN.<n>`, for example `v2.24-SYN.1`, `v2.24-SYN.2`. Each release has the Pinecil V2 `.bin` files attached and lists the changes since the previous one.
 - **PineFlash-CE:** releases also include `Pinecilv2.zip` and `metadata.zip` in the same layout as official IronOS releases. In PineFlash-CE, choose **Manage sources...** in the firmware list and add `GRIMREAPER35487/IronOS-Syn`; the `-SYN` releases then appear in the firmware list next to official IronOS.
 - **Build:** every push runs GitHub Actions, which in this fork only builds the Pinecil V2. For builds from other branches, open the run, download the **Pinecilv2** artifact, and use `Pinecilv2_EN.bin` (or another language).
 - **Flash:** write the `.bin` to the Pinecil V2 the usual way (it goes at flash address `0x2000`), for example with blisp or PineFlash-CE using a local file. Your settings are kept.

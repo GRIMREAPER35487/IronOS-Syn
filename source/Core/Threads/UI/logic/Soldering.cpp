@@ -5,12 +5,57 @@
 // State 1 = button locking  (0:unlocked+released, 1:unlocked, 2:locked, 3:locked+released)
 // State 2 = boost mode
 // State 3 = buzzer timer
+// State 4 = set after the first frame in this mode (custom)
+// State 5 = set point reached this heat-up, so the reached signal has already fired
 // State 6 = at-temp screen blink running (custom)
 // State 8 = tick the at-temp screen blink started (custom)
 
 // Screen blink the first time the tip reaches the set point: inverted on phases 0, 2, 4
 #define AT_TEMP_BLINK_PHASE  (TICKS_100MS * 2)
 #define AT_TEMP_BLINK_PHASES 6
+
+// Heat-up countdown for the basic soldering screen (custom).
+// The heating rate is measured over short windows and smoothed; the countdown is how long the rest of the climb to
+// within 10 C of the set point takes at that rate. It is only shown while clearly heating, otherwise -1.
+#define HEAT_ETA_WINDOW    (TICKS_100MS * 5) // rate sample length; long enough that whole-degree steps don't dominate
+#define HEAT_ETA_STALE     TICKS_SECOND      // longer than this since the last call: start measuring again
+#define HEAT_ETA_SHOW_RATE 30                // x10 C/s: start showing the countdown above 3 C/s ...
+#define HEAT_ETA_HIDE_RATE 15                // ... and keep showing it until the rate drops below 1.5 C/s (no flicker)
+#define HEAT_ETA_MAX       99                // seconds; two digits on screen
+
+static int8_t heatUpEtaSeconds(int errorC, bool atTemp) {
+  static TickType_t lastTick   = 0;
+  static TickType_t lastCall   = 0;
+  static int32_t    lastTempC  = 0;
+  static int32_t    rateX10    = 0; // smoothed heating rate, tenths of a C per second
+  static bool       showing    = false;
+  const TickType_t  now        = xTaskGetTickCount();
+  const int32_t     tipC       = TipThermoModel::getTipInC();
+  const bool        restarting = (now - lastCall) > HEAT_ETA_STALE;
+  lastCall                     = now;
+  if (restarting) {
+    lastTick  = now;
+    lastTempC = tipC;
+    rateX10   = 0;
+    showing   = false;
+    return -1;
+  }
+  if ((now - lastTick) >= HEAT_ETA_WINDOW) {
+    const int32_t sampleX10 = ((tipC - lastTempC) * 10 * (int32_t)TICKS_SECOND) / (int32_t)(now - lastTick);
+    rateX10                 = (rateX10 * 6 + sampleX10 * 4) / 10;
+    lastTick                = now;
+    lastTempC               = tipC;
+  }
+  showing = !atTemp && errorC > 10 && rateX10 >= (showing ? HEAT_ETA_HIDE_RATE : HEAT_ETA_SHOW_RATE);
+  if (!showing) {
+    return -1;
+  }
+  int32_t eta = ((errorC - 10) * 10 + rateX10 - 1) / rateX10; // round up
+  if (eta > HEAT_ETA_MAX) {
+    eta = HEAT_ETA_MAX;
+  }
+  return (int8_t)eta;
+}
 
 OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt) {
   if (cxt->scratch_state.state1 >= 2) {
@@ -127,10 +172,28 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
     }
   }
 
+  // The reached-temperature signal (beep + blink) fires once per set temperature. Scratch state is cleared on every mode
+  // change, so remember it across a trip to the temperature adjust screen: coming back with the same set temperature
+  // doesn't replay it, a new set temperature does (once the tip gets there). Any other way in (heat confirm, wake from
+  // sleep) is a new heat-up.
+  static bool              reachedThisHeatUp = false;
+  static TemperatureType_t reachedTargetC    = 0;
+  if (!cxt->scratch_state.state4) {
+    cxt->scratch_state.state4 = 1;
+    if (cxt->previousMode != OperatingMode::TemperatureAdjust || reachedTargetC != currentTempTargetDegC) {
+      reachedThisHeatUp = false;
+    }
+    cxt->scratch_state.state5 = reachedThisHeatUp;
+  }
+
   // Update status
   int  error  = currentTempTargetDegC - TipThermoModel::getTipInC();
   bool atTemp = (error >= -10 && error <= 10);
   if (atTemp) {
+    if (!reachedThisHeatUp) {
+      reachedThisHeatUp = true;
+      reachedTargetC    = currentTempTargetDegC;
+    }
     // converged; beep once per soldering session, the first time the set point is reached
     if (!cxt->scratch_state.state5) {
       setBuzzer(true);
@@ -162,10 +225,13 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
   }
 
   // Draw in the screen details
+  const int8_t heatEta = heatUpEtaSeconds(error, atTemp);
   if (getSettingValue(SettingsOptions::DetailedSoldering)) {
     ui_draw_soldering_power_status(cxt->scratch_state.state2);
   } else {
-    ui_draw_soldering_basic_status(cxt->scratch_state.state2);
+    // Set temperature in display units (the boost temperature while boosting)
+    const TemperatureType_t target = getSettingValue(cxt->scratch_state.state2 ? SettingsOptions::BoostTemp : SettingsOptions::SolderingTemp);
+    ui_draw_soldering_basic_status(cxt->scratch_state.state2, target, heatEta);
   }
   // Underline the tip temperature while it is within +-10 of the set point
   if (atTemp) {
