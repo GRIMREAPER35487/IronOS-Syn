@@ -24,8 +24,10 @@ struct HomeCooldownState {
   bool safeDetailed; // cooled from hot to safe: show the OK badge on the detailed home screen (while cool)
 };
 extern HomeCooldownState homeCooldown;
+
 void ui_draw_safe_badge(bool smallBadge, int16_t x); // 96x16 only: lit box with SAFE (40px) or OK (18px)
-void ui_pre_render_assets(void);                                 // If any assets need to be pre-rendered into ram
+
+void ui_pre_render_assets(void); // If any assets need to be pre-rendered into ram
 // Soldering mode
 void ui_draw_soldering_power_status(bool boost_mode_on);
 void ui_draw_soldering_basic_status(bool boostModeOn);
