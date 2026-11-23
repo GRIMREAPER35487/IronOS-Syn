@@ -317,3 +317,85 @@ jobs:
 
       - name: Check and verify documentation
         run: ./scripts/deploy.sh docs
+
+  # This fork: publish a numbered release for every successful push to dev.
+  # Name = upstream BUILD_VERSION from source/version.h + "-SYN.<n>", e.g. v2.24-SYN.1, v2.24-SYN.2, ...
+  release:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+    needs: [build, build_multi-lang, tests]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: release-dev
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download the Pinecil V2 builds
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/
+
+      - name: Work out the release name and notes
+        id: version
+        run: |
+          base=$(sed -n 's/^#define BUILD_VERSION "\(.*\)"$/\1/p' source/version.h)
+          if [ -z "$base" ]; then
+            echo "Could not read BUILD_VERSION from source/version.h"
+            exit 1
+          fi
+
+          # Next free number for this upstream version
+          git fetch --tags --force origin
+          last=0
+          for t in $(git tag --list "${base}-SYN.*"); do
+            n="${t#"${base}-SYN."}"
+            if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$last" ]; then last="$n"; fi
+          done
+          tag="${base}-SYN.$((last + 1))"
+          prev=$(git describe --tags --abbrev=0 --match '*-SYN.*' "$GITHUB_SHA" 2>/dev/null || true)
+          echo "Release: $tag (previous: ${prev:-none})"
+
+          {
+            echo "## IronOS ${base} for the Pinecil V2, with this fork's customisations"
+            echo
+            echo "Built from \`dev\` at ${GITHUB_SHA:0:8}. Based on upstream [Ralim/IronOS](https://github.com/Ralim/IronOS) ${base} (development branch)."
+            echo "What's different from stock IronOS: [Pinecil V2 customisations](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/README.md#pinecil-v2-customisations)."
+            echo
+            echo "### Install"
+            echo
+            echo "Flash \`Pinecilv2_EN.bin\` (or another language) to a Pinecil V2 the usual way. It goes at flash address \`0x2000\`, for example with blisp or PineFlash using a local file. Your settings are kept."
+            echo "The \`Pinecilv2_multi_*.bin\` files contain several languages you can switch between on the iron."
+            echo
+            if [ -n "$prev" ]; then
+              echo "### Changes since ${prev}"
+              echo
+              git log --no-merges --format='- %s (%h)' "${prev}..${GITHUB_SHA}"
+            else
+              echo "First release of this fork."
+            fi
+          } > release-notes.md
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t files < <(find artifacts -type f -name 'Pinecilv2_*.bin' | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No Pinecilv2_*.bin files found in the build artifacts"
+            exit 1
+          fi
+          printf 'Attaching %s\n' "${files[@]}"
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --target "$GITHUB_SHA" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes-file release-notes.md \
+            --latest \
+            "${files[@]}"
