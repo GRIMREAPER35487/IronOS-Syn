@@ -8,8 +8,43 @@ on:
       - dev
       - main
 
+# This fork: one run at a time per branch, so two quick pushes to dev can't pick the same -SYN number.
+# (A newer queued run replaces an older one that hasn't started yet.)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  # This fork: work out the -SYN release name before building, so the firmware shows the same version as the release.
+  # On a push to dev: upstream BUILD_VERSION from source/version.h + "-SYN.<next free n>", e.g. v2.24-SYN.1.
+  # Anywhere else: empty, and the firmware keeps upstream's version format (e.g. v2.24B.<commit>).
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.next.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Work out the next -SYN version
+        id: next
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+        run: |
+          base=$(sed -n 's/^#define BUILD_VERSION "\(.*\)"$/\1/p' source/version.h)
+          if [ -z "$base" ]; then
+            echo "Could not read BUILD_VERSION from source/version.h"
+            exit 1
+          fi
+          last=0
+          for ref in $(git ls-remote --tags --refs origin "refs/tags/${base}-SYN.*" | cut -f2); do
+            n="${ref#"refs/tags/${base}-SYN."}"
+            if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$last" ]; then last="$n"; fi
+          done
+          tag="${base}-SYN.$((last + 1))"
+          echo "Next release: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: version
     runs-on: ubuntu-24.04
     container:
       image: alpine:3.21
@@ -40,6 +75,8 @@ jobs:
         run: echo "GITHUB_CI_PR_SHA=${{github.event.pull_request.head.sha}}" >> "${GITHUB_ENV}"
 
       - name: Build ${{ matrix.model }}
+        env:
+          IRONOS_SYN_VERSION: ${{ needs.version.outputs.tag }}
         run: cd source && ./build.sh -m ${{ matrix.model }}
 
       - name: Copy license files
@@ -63,6 +100,7 @@ jobs:
           if-no-files-found: error
 
   build_multi-lang:
+    needs: version
     runs-on: ubuntu-24.04
     container:
       image: alpine:3.21
@@ -87,6 +125,8 @@ jobs:
         run: echo "GITHUB_CI_PR_SHA=${{github.event.pull_request.head.sha}}" >> "${GITHUB_ENV}"
 
       - name: Build ${{ matrix.model }}
+        env:
+          IRONOS_SYN_VERSION: ${{ needs.version.outputs.tag }}
         run: make -C source/ -j$(nproc) model="${{ matrix.model }}" firmware-multi_compressed_European firmware-multi_compressed_Belarusian+Bulgarian+Russian+Serbian+Ukrainian firmware-multi_Chinese+Japanese
 
       - name: Copy license files
@@ -319,10 +359,10 @@ jobs:
         run: ./scripts/deploy.sh docs
 
   # This fork: publish a numbered release for every successful push to dev.
-  # Name = upstream BUILD_VERSION from source/version.h + "-SYN.<n>", e.g. v2.24-SYN.1, v2.24-SYN.2, ...
+  # The name comes from the version job (e.g. v2.24-SYN.1), the same string the firmware was built with.
   release:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
-    needs: [build, build_multi-lang, tests]
+    needs: [version, build, build_multi-lang, tests]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -341,23 +381,22 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Work out the release name and notes
+      - name: Work out the release notes
         id: version
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           base=$(sed -n 's/^#define BUILD_VERSION "\(.*\)"$/\1/p' source/version.h)
-          if [ -z "$base" ]; then
-            echo "Could not read BUILD_VERSION from source/version.h"
+          tag="$TAG"
+          if [ -z "$tag" ]; then
+            echo "The version job did not produce a -SYN tag"
             exit 1
           fi
-
-          # Next free number for this upstream version
           git fetch --tags --force origin
-          last=0
-          for t in $(git tag --list "${base}-SYN.*"); do
-            n="${t#"${base}-SYN."}"
-            if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$last" ]; then last="$n"; fi
-          done
-          tag="${base}-SYN.$((last + 1))"
+          if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+            echo "Tag $tag already exists; the firmware was built with a number that is now taken"
+            exit 1
+          fi
           prev=$(git describe --tags --abbrev=0 --match '*-SYN.*' "$GITHUB_SHA" 2>/dev/null || true)
           echo "Release: $tag (previous: ${prev:-none})"
 

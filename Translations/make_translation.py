@@ -1635,6 +1635,11 @@ def get_version_suffix(ver) -> str:
 
 
 def read_version() -> str:
+    # This fork: CI sets IRONOS_SYN_VERSION (e.g. "v2.24-SYN.1") for builds that become a release,
+    # so the version shown on the iron matches the release name. Otherwise keep upstream's format.
+    syn_version = os.environ.get("IRONOS_SYN_VERSION", "").strip()
+    if syn_version != "":
+        return syn_version
     with open(HERE.parent / "source" / "version.h", encoding="utf-8") as version_file:
         for line in version_file:
             if re.findall(r"^.*(?<=(#define)).*(?<=(BUILD_VERSION))", line):
